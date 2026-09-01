@@ -1,0 +1,72 @@
+[
+  {
+    "external_id": "A01:2021",
+    "title": "Broken Access Control",
+    "url": "https://owasp.org/Top10/A01_2021-Broken_Access_Control/",
+    "content": "Access control enforces policy such that users cannot act outside of their intended permissions. Failures typically lead to unauthorized information disclosure, modification, or destruction of all data or performing a business function outside the user's limits. Common vulnerabilities include bypassing access control checks by modifying the URL, internal application state, or the HTML page, or simply using a custom API attack tool; permitting viewing or editing someone else's account by providing its unique identifier (IDOR); access API with missing access controls for POST, PUT and DELETE; elevation of privilege.",
+    "cwe_ids": ["CWE-284", "CWE-285", "CWE-639", "CWE-862", "CWE-863"]
+  },
+  {
+    "external_id": "A02:2021",
+    "title": "Cryptographic Failures",
+    "url": "https://owasp.org/Top10/A02_2021-Cryptographic_Failures/",
+    "content": "Cryptographic failures often lead to sensitive data exposure or system compromise. Determine what data requires protection in transit and at rest (passwords, credit card numbers, health records, personal info). Check if data is transmitted in clear text (HTTP, FTP, SMTP). Look for old or weak cryptographic algorithms (MD5, SHA1, DES). Ensure default crypto keys are not in use and that weak keys are generated.",
+    "cwe_ids": ["CWE-259", "CWE-327", "CWE-328", "CWE-330", "CWE-338"]
+  },
+  {
+    "external_id": "A03:2021",
+    "title": "Injection",
+    "url": "https://owasp.org/Top10/A03_2021-Injection/",
+    "content": "An application is vulnerable to injection when user-supplied data is not validated, filtered, or sanitized by the application. Dynamic queries or non-parameterized calls without context-aware escaping are used directly in the interpreter. SQL, NoSQL, OS command, Object Relational Mapping (ORM), LDAP, and Expression Language (EL) or OGNL injection are common. Prevention requires using a safe API (parameterized queries/ORMs), positive server-side input validation, and escaping special characters.",
+    "cwe_ids": ["CWE-77", "CWE-78", "CWE-89", "CWE-94", "CWE-564"]
+  },
+  {
+    "external_id": "A04:2021",
+    "title": "Insecure Design",
+    "url": "https://owasp.org/Top10/A04_2021-Insecure_Design/",
+    "content": "Insecure design is a broad category representing different weaknesses, expressed as 'missing or ineffective control design'. Insecure design cannot be fixed by a perfect implementation as by definition the needed security controls were never created to defend against specific attacks. Establish and use a secure development lifecycle with security professionals to evaluate and design controls.",
+    "cwe_ids": ["CWE-209", "CWE-256", "CWE-501", "CWE-522"]
+  },
+  {
+    "external_id": "A05:2021",
+    "title": "Security Misconfiguration",
+    "url": "https://owasp.org/Top10/A05_2021-Security_Misconfiguration/",
+    "content": "Security misconfiguration happens when security settings are defined, implemented, and maintained with defaults or errors. This includes unpatched flaws, default accounts and passwords, unused pages, unprotected files and directories, unnecessary enabled features, overly permissive CORS, and detailed error messages containing stack traces.",
+    "cwe_ids": ["CWE-16", "CWE-200", "CWE-611", "CWE-1004"]
+  },
+  {
+    "external_id": "A06:2021",
+    "title": "Vulnerable and Outdated Components",
+    "url": "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/",
+    "content": "Components such as libraries, frameworks, and other software modules run with the same privileges as the application. If a vulnerable component is exploited, such an attack can facilitate serious data loss or server takeover. Continuous dependency inventory and CVE scanning are required.",
+    "cwe_ids": ["CWE-1104", "CWE-937"]
+  },
+  {
+    "external_id": "A07:2021",
+    "title": "Identification and Authentication Failures",
+    "url": "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/",
+    "content": "Confirmation of the user's identity, authentication, and session management is critical to protect against authentication-related attacks. Vulnerabilities occur when automated attacks like credential stuffing or brute force are permitted; weak passwords are accepted; credential recovery processes are weak; plain-text passwords or exposed secrets exist in code; session identifiers are exposed in URLs.",
+    "cwe_ids": ["CWE-297", "CWE-384", "CWE-521", "CWE-798"]
+  },
+  {
+    "external_id": "A08:2021",
+    "title": "Software and Data Integrity Failures",
+    "url": "https://owasp.org/Top10/A08_2021-Software_and_Data_Integrity_Failures/",
+    "content": "Software and data integrity failures relate to code and infrastructure that do not protect against integrity violations. This includes applications relying upon plugins, libraries, or modules from untrusted sources, repositories, and CDNs. Insecure deserialization flaws allow attackers to execute arbitrary code or tamper with object states.",
+    "cwe_ids": ["CWE-502", "CWE-829", "CWE-494"]
+  },
+  {
+    "external_id": "A09:2021",
+    "title": "Security Logging and Monitoring Failures",
+    "url": "https://owasp.org/Top10/A09_2021-Security_Logging_and_Monitoring_Failures/",
+    "content": "Insufficient logging, detection, monitoring, and active response can allow attackers to establish persistence and pivot to other systems undetected. Critical security events (logins, failed logins, high-value transactions) must be logged with sufficient context without recording sensitive credentials or PII.",
+    "cwe_ids": ["CWE-117", "CWE-778"]
+  },
+  {
+    "external_id": "A10:2021",
+    "title": "Server-Side Request Forgery (SSRF)",
+    "url": "https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/",
+    "content": "SSRF flaws occur whenever a web application is fetching a remote resource without validating the user-supplied URL. It allows an attacker to coerce the application to send a crafted request to an unexpected destination, even when protected by a firewall, VPN, or network ACL, such as cloud instance metadata services (169.254.169.254).",
+    "cwe_ids": ["CWE-918"]
+  }
+]
