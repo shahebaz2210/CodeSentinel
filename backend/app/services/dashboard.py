@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +16,6 @@ from backend.app.schemas.dashboard import (
     SeverityDistribution,
 )
 from backend.app.schemas.finding import FindingResponse
-from backend.app.schemas.scan import ScanResponse
 from backend.app.services.scan import ScanService
 
 

@@ -14,7 +14,7 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,7 +31,6 @@ from backend.app.scanners.gitleaks import GitleaksScanner
 from backend.app.scanners.normalizer import FindingNormalizer
 from backend.app.scanners.semgrep import SemgrepScanner
 from backend.app.services.ai_assessment import AIAssessmentService
-from backend.app.services.github_oauth import GitHubOAuthService
 from backend.app.services.intelligence import IntelligenceService
 from backend.app.services.policy import PolicyEngine
 from backend.app.services.risk import RiskEngine
@@ -107,8 +106,6 @@ class ScanPipeline:
 
             # 2. FETCHING Stage (Clone repository if GitHub connected or mock workspace)
             await self._update_stage("FETCHING", "RUNNING")
-            gh_oauth = GitHubOAuthService(self.db)
-            # Look for org owner user token
             clone_success = await self._fetch_repo_code(repository, scan, workspace_dir)
             await self._update_stage("FETCHING", "COMPLETED" if clone_success else "SKIPPED", item_count=1)
 

@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.security import create_jwt_token, decode_jwt_token
+from backend.app.core.security import create_jwt_token
 from backend.app.models.user import User
 from backend.app.models.organization import Organization
 from backend.app.models.organization_member import OrganizationMember
@@ -56,7 +56,7 @@ class AuthService:
             role="OWNER"
         )
         self.db.add(member)
-        
+
         # Log audit event
         audit = AuditLog(
             organization_id=org.id,

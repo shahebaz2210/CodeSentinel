@@ -5,7 +5,6 @@ Starts an RQ worker listening on Redis queue for async scan jobs.
 Run with: python -m backend.app.workers.worker_main
 """
 
-import sys
 from redis import Redis
 from rq import Worker, Queue, Connection
 

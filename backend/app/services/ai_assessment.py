@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.ai.gemini_provider import GeminiProvider
 from backend.app.core.config import settings
 from backend.app.models.ai_assessment import AIAssessment
-from backend.app.models.finding import Finding
 from backend.app.schemas.finding import AIAssessmentResponse
 
 

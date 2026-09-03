@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.security_chunk import SecurityChunk
 from backend.app.models.security_document import SecurityDocument
-from backend.app.schemas.intelligence import SecurityChunkResponse, SecurityDocumentResponse
+from backend.app.schemas.intelligence import SecurityDocumentResponse
 from backend.app.services.embeddings import EmbeddingService
 
 

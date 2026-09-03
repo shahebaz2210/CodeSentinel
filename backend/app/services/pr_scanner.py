@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import urllib.parse
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

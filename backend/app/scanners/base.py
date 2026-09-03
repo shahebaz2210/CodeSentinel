@@ -22,7 +22,7 @@ def find_scanner_binary(binary_name: str) -> str | None:
                 return str(candidate)
 
     # Check local virtualenv / scripts
-    local_candidate = Path(sys_executable_dir := Path(os.path.dirname(__import__("sys").executable))) / f"{binary_name}.exe"
+    local_candidate = Path(os.path.dirname(__import__("sys").executable)) / f"{binary_name}.exe"
     if local_candidate.exists():
         return str(local_candidate)
 

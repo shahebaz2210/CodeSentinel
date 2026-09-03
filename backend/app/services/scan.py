@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from typing import List, Optional
-from redis import Redis
 from rq import Queue
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -204,7 +202,7 @@ async def run_scan_pipeline_background(scan_id: str) -> None:
         async with async_session_factory() as session:
             pipeline = ScanPipeline(session, scan_id)
             await pipeline.run()
-    except Exception as e:
+    except Exception:
         import traceback
         traceback.print_exc()
 

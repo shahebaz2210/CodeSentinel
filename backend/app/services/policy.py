@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.policy import Policy
 from backend.app.models.policy_evaluation import PolicyEvaluation
-from backend.app.schemas.policy import PolicyConfig, PolicyCreate, PolicyEvaluationResult, PolicyResponse, PolicyResultEnum, PolicyUpdate
+from backend.app.schemas.policy import PolicyConfig, PolicyCreate, PolicyResponse, PolicyResultEnum
 from backend.app.services.exception import ExceptionService
 
 
@@ -20,7 +20,7 @@ class PolicyEngine:
 
     async def get_or_create_default_policy(self, organization_id: str) -> Policy:
         """Fetch default org policy or create one if none exists."""
-        stmt = select(Policy).where(Policy.organization_id == organization_id, Policy.enabled == True).order_by(Policy.created_at.desc())
+        stmt = select(Policy).where(Policy.organization_id == organization_id, Policy.enabled.is_(True)).order_by(Policy.created_at.desc())
         res = await self.db.execute(stmt)
         policy = res.scalars().first()
 
