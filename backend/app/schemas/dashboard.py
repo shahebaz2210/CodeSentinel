@@ -45,6 +45,7 @@ class DashboardSummary(BaseModel):
     high_findings_count: int = 0
     total_open_findings: int = 0
     active_scans_count: int = 0
+    scans_today_count: int = 0
     pr_gates_passed: int = 0
     pr_gates_failed: int = 0
     severity_distribution: SeverityDistribution = Field(default_factory=SeverityDistribution)

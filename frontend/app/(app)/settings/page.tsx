@@ -67,6 +67,19 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </div>
+
+              <div className="pt-2 flex items-center justify-between border-t border-white/[0.08]">
+                <div className="text-xs text-[#94a3b8]">
+                  OAuth Connection & Token
+                </div>
+                <a
+                  href="http://localhost:8000/api/v1/auth/github"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-xs font-semibold text-white transition-all shadow-sm"
+                >
+                  <Github className="w-3.5 h-3.5" />
+                  <span>Reconnect GitHub</span>
+                </a>
+              </div>
             </div>
           </div>
 

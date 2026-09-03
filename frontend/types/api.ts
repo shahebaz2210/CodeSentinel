@@ -183,6 +183,7 @@ export interface DashboardSummary {
   high_findings_count: number;
   total_open_findings: number;
   active_scans_count: number;
+  scans_today_count?: number;
   pr_gates_passed: number;
   pr_gates_failed: number;
   severity_distribution: {

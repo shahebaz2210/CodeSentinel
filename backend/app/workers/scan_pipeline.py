@@ -284,6 +284,27 @@ class ScanPipeline:
             # 12. PERSISTENCE Stage (Save findings and occurrences)
             await self._update_stage("PERSIST", "RUNNING")
             now_dt = datetime.now(timezone.utc)
+
+            # Supersede older open findings for this repository matching the same fingerprints
+            # so each unique finding is only counted once in active posture metrics
+            fingerprints = [f["stable_fingerprint"] for f in normalized_findings if f.get("stable_fingerprint")]
+            if fingerprints:
+                prev_scans = (
+                    await self.db.execute(
+                        select(Scan.id).where(Scan.repository_id == repository.id, Scan.id != scan.id)
+                    )
+                ).scalars().all()
+                if prev_scans:
+                    await self.db.execute(
+                        update(Finding)
+                        .where(
+                            Finding.scan_id.in_(prev_scans),
+                            Finding.status == "OPEN",
+                            Finding.stable_fingerprint.in_(fingerprints),
+                        )
+                        .values(status="RESOLVED")
+                    )
+
             for f in normalized_findings:
                 finding_model = Finding(
                     scan_id=scan.id,

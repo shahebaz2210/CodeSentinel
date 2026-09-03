@@ -22,3 +22,17 @@ def run_scan_job(scan_id: str) -> None:
 
     asyncio.run(_async_runner())
     logger.info("scan_job_finished", scan_id=scan_id)
+
+
+async def run_scan_async(scan_id: str) -> None:
+    """Asynchronous in-process runner for local background execution without Redis."""
+    setup_logging()
+    logger.info("scan_job_started_inprocess", scan_id=scan_id)
+    try:
+        async with async_session_factory() as session:
+            pipeline = ScanPipeline(session, scan_id)
+            await pipeline.run()
+        logger.info("scan_job_finished_inprocess", scan_id=scan_id)
+    except Exception as e:
+        logger.error("scan_job_failed_inprocess", scan_id=scan_id, error=str(e))
+

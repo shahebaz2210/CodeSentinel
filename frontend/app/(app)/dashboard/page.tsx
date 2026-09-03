@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   XCircle,
   RotateCw,
+  RefreshCw,
   GitCommit,
   Layers,
   Sparkles,
@@ -41,8 +42,25 @@ export default function DashboardPage() {
   const [selectedRepoId, setSelectedRepoId] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleSyncGitHub = async () => {
+    setSyncing(true);
+    try {
+      await api.repositories.sync('default-org');
+      await loadData(true);
+    } catch (e: any) {
+      if (e.message?.includes('401') || e.message?.includes('Bad credentials')) {
+        window.location.href = 'http://localhost:8000/api/v1/auth/github';
+      } else {
+        alert(`Sync failed: ${e.message}`);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) {
@@ -174,14 +192,15 @@ export default function DashboardPage() {
               </button>
             </Link>
 
-            <Link href="/policies">
-              <button
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-semibold transition-all shadow-[0_0_16px_rgba(59,130,246,0.35)] hover:shadow-[0_0_24px_rgba(59,130,246,0.5)] border border-[#60a5fa]/40"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>New Policy</span>
-              </button>
-            </Link>
+            <button
+              onClick={handleSyncGitHub}
+              disabled={syncing}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-semibold transition-all shadow-[0_0_16px_rgba(59,130,246,0.35)] hover:shadow-[0_0_24px_rgba(59,130,246,0.5)] border border-[#60a5fa]/40 disabled:opacity-50"
+              title="Sync all GitHub repositories"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+              <span>{syncing ? 'Syncing...' : 'Sync GitHub'}</span>
+            </button>
           </div>
         </div>
 
@@ -310,12 +329,12 @@ export default function DashboardPage() {
 
                   <div className="my-1">
                     <span className="text-3xl font-bold font-mono tracking-tight text-white">
-                      {totalActiveScans > 0 ? `${totalActiveScans}` : `${recentScansCount}`}
+                      {data.scans_today_count !== undefined ? data.scans_today_count : (totalActiveScans > 0 ? totalActiveScans : recentScansCount)}
                     </span>
                   </div>
 
                   <div className="text-xs text-[#8b949e] font-medium">
-                    {totalActiveScans > 0 ? `${totalActiveScans} active in queue` : '100% telemetry synced'}
+                    {totalActiveScans > 0 ? `${totalActiveScans} active in queue` : `${data.recent_scans.length} total recent scans loaded`}
                   </div>
                 </div>
               </div>
@@ -529,13 +548,14 @@ export default function DashboardPage() {
                       <th className="px-6 py-3 font-semibold">Findings</th>
                       <th className="px-6 py-3 font-semibold">Policy</th>
                       <th className="px-6 py-3 font-semibold">Duration</th>
+                      <th className="px-6 py-3 font-semibold">Time</th>
                       <th className="px-6 py-3 font-semibold text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
-                    {/* Render Real Scans from API */}
+                    {/* Render Real Scans from API (expanded to 15) */}
                     {data.recent_scans.length > 0 ? (
-                      data.recent_scans.slice(0, 6).map((scan, idx) => {
+                      data.recent_scans.slice(0, 15).map((scan, idx) => {
                         const isFailed = scan.status === 'FAILED' || scan.policy_result === 'FAIL';
                         const isRunning = scan.status === 'RUNNING' || scan.status === 'QUEUED';
                         const isPassed = !isFailed && !isRunning;
@@ -602,6 +622,11 @@ export default function DashboardPage() {
                               {isRunning ? '--' : formatDuration(scan.duration_ms)}
                             </td>
 
+                            {/* Scan Time (Synchronized with machine clock) */}
+                            <td className="px-6 py-4 font-mono text-[11px] text-[#8b949e] whitespace-nowrap">
+                              {formatDate(scan.created_at)}
+                            </td>
+
                             {/* Status */}
                             <td className="px-6 py-4 text-right">
                               {isFailed ? (
@@ -626,7 +651,7 @@ export default function DashboardPage() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-xs text-[#8b949e]">
+                        <td colSpan={7} className="px-6 py-8 text-center text-xs text-[#8b949e]">
                           No recent scans found. Connect a repository or trigger a scan to view live telemetry.
                         </td>
                       </tr>

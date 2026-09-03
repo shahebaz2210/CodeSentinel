@@ -122,7 +122,8 @@ class ScanService:
 
         if not enqueued_redis:
             import asyncio
-            asyncio.create_task(run_scan_pipeline_background(scan.id))
+            from backend.app.workers.scan_worker import run_scan_async
+            asyncio.create_task(run_scan_async(scan.id))
 
         return await self.get_scan_with_details(scan.id)
 

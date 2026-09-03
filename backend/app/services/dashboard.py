@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,8 +75,16 @@ class DashboardService:
         passed_gates = gate_row.passed or 0 if gate_row else 0
         failed_gates = gate_row.failed or 0 if gate_row else 0
 
-        # Recent scans
-        recent_scans_stmt = select(Scan).order_by(desc(Scan.created_at)).limit(6)
+        # Scans today (count of scans initiated today UTC)
+        today_prefix = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today_scans_stmt = select(func.count(Scan.id)).where(Scan.created_at >= today_prefix)
+        if organization_id:
+            today_scans_stmt = today_scans_stmt.join(Repository, Repository.id == Scan.repository_id).where(Repository.organization_id == organization_id)
+        scans_today_res = await self.db.execute(today_scans_stmt)
+        scans_today_count = scans_today_res.scalar() or 0
+
+        # Recent scans (expanded to 20 for full audit visibility)
+        recent_scans_stmt = select(Scan).order_by(desc(Scan.created_at)).limit(20)
         scans_res = await self.db.execute(recent_scans_stmt)
         recent_scans = []
         for s in scans_res.scalars().all():
@@ -136,6 +145,7 @@ class DashboardService:
             high_findings_count=high_count,
             total_open_findings=total_open,
             active_scans_count=active_scans,
+            scans_today_count=scans_today_count,
             pr_gates_passed=passed_gates,
             pr_gates_failed=failed_gates,
             severity_distribution=SeverityDistribution(

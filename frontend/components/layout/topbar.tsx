@@ -13,18 +13,70 @@ interface TopbarProps {
 export const Topbar: React.FC<TopbarProps> = ({ onOpenSearch }) => {
   const pathname = usePathname();
 
-  // Generate dynamic breadcrumb
+  // Friendly route title mapping
+  const routeLabels: Record<string, string> = {
+    dashboard: 'Dashboard',
+    repositories: 'Repositories',
+    findings: 'Findings',
+    'pull-requests': 'Pull Requests',
+    scans: 'Scans',
+    policies: 'Policies',
+    new: 'New Policy',
+    intelligence: 'Threat Intelligence',
+    audit: 'Audit Log',
+    settings: 'Settings & Integrations',
+    'how-it-works': 'Documentation',
+  };
+
   const segments = pathname?.split('/').filter(Boolean) || ['dashboard'];
-  const breadcrumbText = segments.map((s) => s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' '));
 
   return (
     <header className="h-16 bg-black/85 backdrop-blur-2xl border-b border-white/[0.08] px-6 flex items-center justify-between sticky top-0 z-20 shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.4)]">
-      {/* Breadcrumb Navigation */}
-      <div className="flex items-center gap-2 text-xs font-medium">
-        <span className="text-[#8b949e]">Security</span>
-        <ChevronRight className="w-3.5 h-3.5 text-[#484f58]" />
-        <span className="text-white font-semibold">Dashboard</span>
-      </div>
+      {/* Dynamic Clickable Breadcrumb Navigation */}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-medium">
+        <Link
+          href="/dashboard"
+          className="text-[#8b949e] hover:text-white transition-colors flex items-center gap-1.5"
+        >
+          <span>Security</span>
+        </Link>
+
+        {segments.map((segment, index) => {
+          const href = '/' + segments.slice(0, index + 1).join('/');
+          const isLast = index === segments.length - 1;
+
+          // Format segment text: look up in map, or format UUID / generic text
+          let label = routeLabels[segment.toLowerCase()];
+          if (!label) {
+            if (segment.length > 15 || /^[0-9a-fA-F-]+$/.test(segment)) {
+              label = 'Details';
+            } else {
+              label = segment
+                .split('-')
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ');
+            }
+          }
+
+          return (
+            <React.Fragment key={href}>
+              <ChevronRight className="w-3.5 h-3.5 text-[#484f58] shrink-0" />
+              {isLast ? (
+                <span className="text-white font-semibold truncate max-w-[220px]" aria-current="page">
+                  {label}
+                </span>
+              ) : (
+                <Link
+                  href={href}
+                  className="text-[#8b949e] hover:text-white transition-colors truncate max-w-[160px]"
+                >
+                  {label}
+                </Link>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </nav>
 
       {/* Global Actions */}
       <div className="flex items-center gap-4">

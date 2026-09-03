@@ -13,6 +13,7 @@ import {
   GitBranch,
   Clock,
   ChevronRight,
+  Github,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,8 @@ export default function RepositoriesPage() {
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [authExpired, setAuthExpired] = useState(false);
+
   const loadRepos = async () => {
     setLoading(true);
     setError(null);
@@ -53,11 +56,16 @@ export default function RepositoriesPage() {
 
   const handleSync = async () => {
     setSyncing(true);
+    setAuthExpired(false);
     try {
       await api.repositories.sync('default-org');
       await loadRepos();
     } catch (e: any) {
-      alert(`Sync failed: ${e.message}`);
+      if (e.message?.includes('401') || e.message?.includes('Bad credentials')) {
+        setAuthExpired(true);
+      } else {
+        alert(`Sync failed: ${e.message}`);
+      }
     } finally {
       setSyncing(false);
     }
@@ -106,11 +114,28 @@ export default function RepositoriesPage() {
               loading={syncing}
               className="gap-2"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin text-[#3b82f6]' : 'text-[#94a3b8]'}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
               <span>Sync GitHub</span>
             </Button>
           </div>
         </div>
+
+        {/* Auth Expired Banner */}
+        {authExpired && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 text-amber-300">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span>Your GitHub OAuth access token has expired. Please re-authenticate to sync your repositories and pull requests.</span>
+            </div>
+            <a
+              href="http://localhost:8000/api/v1/auth/github"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs transition-colors shrink-0"
+            >
+              <Github className="w-3.5 h-3.5" />
+              <span>Reconnect GitHub</span>
+            </a>
+          </div>
+        )}
 
         {error && <ErrorState message={error} onRetry={loadRepos} />}
 
