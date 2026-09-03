@@ -58,14 +58,14 @@ class GeminiProvider(LLMProvider):
                     model_name=target_model,
                     system_instruction=SYSTEM_INSTRUCTION,
                 )
-                response = model.generate_content(prompt)
+                response = await model.generate_content_async(prompt)
             except Exception:
-                # Fallback to gemini-3.7-flash or gemini-flash-latest
+                # Fallback to gemini-flash-latest
                 model = genai.GenerativeModel(
                     model_name="gemini-flash-latest",
                     system_instruction=SYSTEM_INSTRUCTION,
                 )
-                response = model.generate_content(prompt)
+                response = await model.generate_content_async(prompt)
 
             parsed = ResponseValidator.clean_and_parse(response.text)
             if parsed:

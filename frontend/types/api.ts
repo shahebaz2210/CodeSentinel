@@ -64,6 +64,7 @@ export interface ScanStage {
 export interface Scan {
   id: string;
   repository_id: string;
+  repository_name?: string;
   type: ScanType;
   status: ScanStatus;
   commit_sha?: string;
@@ -86,6 +87,8 @@ export interface Scan {
   secret_count: number;
   total_findings: number;
 }
+
+export type ScanListItem = Scan;
 
 export interface AIAssessment {
   id: string;

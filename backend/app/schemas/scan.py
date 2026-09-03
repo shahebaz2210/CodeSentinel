@@ -63,6 +63,7 @@ class ScanStageResponse(BaseModel):
 class ScanResponse(BaseModel):
     id: str
     repository_id: str
+    repository_name: Optional[str] = None
     type: str
     status: str
     commit_sha: Optional[str] = None

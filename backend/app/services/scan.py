@@ -57,6 +57,11 @@ class ScanService:
 
         resp = ScanResponse.model_validate(scan)
         resp.stages = stages
+
+        # Fetch repository name
+        repo_res = await self.db.execute(select(Repository.name).where(Repository.id == scan.repository_id))
+        resp.repository_name = repo_res.scalar_one_or_none()
+
         if fc:
             resp.critical_count = fc.critical or 0
             resp.high_count = fc.high or 0

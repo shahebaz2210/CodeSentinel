@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import List
-from fastapi import APIRouter, Depends
+from typing import List, Optional
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_db
@@ -19,11 +19,12 @@ router = APIRouter(prefix="/scans", tags=["scans"])
 
 @router.get("", response_model=dict)
 async def list_scans(
-    repository_id: Optional[str] = None,
-    type: Optional[str] = None,
-    status: Optional[str] = None,
-    page: int = 1,
-    limit: int = 50,
+    repository_id: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    scan_type: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    page: int = Query(1),
+    limit: int = Query(50),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -31,7 +32,7 @@ async def list_scans(
     scan_service = ScanService(db)
     return await scan_service.list_scans(
         repository_id=repository_id,
-        scan_type=type,
+        scan_type=type or scan_type,
         status=status,
         page=page,
         limit=limit,

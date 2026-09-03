@@ -13,6 +13,18 @@ from backend.app.services.webhook import WebhookService
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
+@router.get("/github")
+async def github_webhook_info():
+    """Health and info status for the GitHub Webhook endpoint."""
+    return {
+        "status": "active",
+        "service": "CodeSentinel GitHub Webhook Receiver",
+        "endpoint": "/api/v1/webhooks/github",
+        "supported_events": ["pull_request", "push", "check_run", "check_suite"],
+        "instructions": "This endpoint receives automated POST notifications from GitHub Webhooks.",
+    }
+
+
 @router.post("/github", response_model=WebhookDeliveryResponse)
 async def github_webhook_receiver(
     request: Request,
@@ -30,3 +42,4 @@ async def github_webhook_receiver(
         event_type=x_github_event,
         delivery_id=x_github_delivery,
     )
+

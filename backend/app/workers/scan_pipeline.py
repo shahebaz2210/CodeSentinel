@@ -7,6 +7,7 @@ Executes all pipeline stages sequentially, persisting progress and findings.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 import tempfile
@@ -20,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.ai.context_builder import ContextBuilder
 from backend.app.core.config import settings
 from backend.app.core.logging import get_logger
+from backend.app.models.ai_assessment import AIAssessment
 from backend.app.models.finding import Finding
 from backend.app.models.finding_occurrence import FindingOccurrence
 from backend.app.models.repository import Repository
@@ -114,9 +116,9 @@ class ScanPipeline:
             await self._update_stage("INVENTORY", "RUNNING")
             ext_counts: Dict[str, int] = {}
             valid_files = 0
-            for root, _, files in os.walk(workspace_dir):
-                if any(ignored in root for ignored in [".git", "node_modules", "venv", ".venv", "__pycache__", ".next", "dist", "build", "target"]):
-                    continue
+            ignored_dirs = {".git", "node_modules", "venv", ".venv", "__pycache__", ".next", "dist", "build", "target", ".turbo"}
+            for root, dirs, files in os.walk(workspace_dir):
+                dirs[:] = [d for d in dirs if d not in ignored_dirs]
                 for f in files:
                     valid_files += 1
                     ext = os.path.splitext(f)[1].lower()
@@ -325,12 +327,20 @@ class ScanPipeline:
 
                 # Persist AI assessment if generated
                 if f.get("ai_assessment"):
-                    await self.ai_service.generate_and_save_assessment(
+                    a_data = f["ai_assessment"]
+                    assessment = AIAssessment(
                         finding_id=finding_model.id,
-                        finding_dict=f,
-                        repo_context={"surrounding_code": f.get("surrounding_code")},
-                        retrieved_knowledge=f.get("retrieved_knowledge", []),
+                        model=settings.gemini_model,
+                        prompt_version="v1",
+                        summary=a_data.get("summary"),
+                        explanation=a_data.get("why_it_matters") or a_data.get("explanation"),
+                        impact=a_data.get("impact"),
+                        remediation=a_data.get("remediation"),
+                        confidence=a_data.get("confidence", 0.8),
+                        uncertainty=json.dumps(a_data.get("uncertainty", [])),
+                        retrieved_sources=json.dumps(f.get("retrieved_knowledge", [])),
                     )
+                    self.db.add(assessment)
 
             await self._update_stage("PERSIST", "COMPLETED", item_count=len(normalized_findings))
 
@@ -341,6 +351,13 @@ class ScanPipeline:
             scan.duration_ms = duration_ms
             await self._update_stage("COMPLETED", "COMPLETED", item_count=len(normalized_findings))
             await self.db.commit()
+
+            # 14. Report Check Run & PR Status to GitHub
+            if scan.commit_sha and repository.provider == "github":
+                try:
+                    await self._report_github_gate_decision(repository, scan, normalized_findings)
+                except Exception as gh_err:
+                    logger.warning("github_status_report_failed", error=str(gh_err))
 
             return scan
         except Exception as e:
@@ -380,6 +397,24 @@ class ScanPipeline:
             else:
                 git_url = f"https://github.com/{repository.full_name}.git"
 
+            # If it's a pull request, fetch the PR ref specifically
+            if scan.type == "PR" and scan.pr_number:
+                # Clone base repo shallowly
+                cmd = ["git", "clone", "--depth", "1", "--no-tags", git_url, str(workspace)]
+                p = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                await p.communicate()
+                if p.returncode == 0:
+                    # Fetch PR ref
+                    fetch_cmd = ["git", "-C", str(workspace), "fetch", "origin", f"pull/{scan.pr_number}/head:pr_{scan.pr_number}"]
+                    pf = await asyncio.create_subprocess_exec(*fetch_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                    await pf.communicate()
+                    if pf.returncode == 0:
+                        checkout_cmd = ["git", "-C", str(workspace), "checkout", f"pr_{scan.pr_number}"]
+                        pco = await asyncio.create_subprocess_exec(*checkout_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                        await pco.communicate()
+                        logger.info("git_pr_ref_checkout_success", repo=repository.full_name, pr_number=scan.pr_number)
+                        return True
+
             cmd = ["git", "clone", "--depth", "1", "--single-branch", "--no-tags", "--branch", target_branch, git_url, str(workspace)]
             process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -412,3 +447,87 @@ class ScanPipeline:
             encoding="utf-8"
         )
         return True
+
+    async def _report_github_gate_decision(self, repository: Repository, scan: Scan, findings: List[dict]):
+        """Publish commit status check and PR approval/review comments to GitHub."""
+        from backend.app.models.github_connection import GitHubConnection
+        from backend.app.services.github import GitHubService
+        from backend.app.services.github_oauth import GitHubOAuthService
+
+        gh_oauth = GitHubOAuthService(self.db)
+        stmt = select(GitHubConnection).order_by(GitHubConnection.created_at.desc())
+        res = await self.db.execute(stmt)
+        conn = res.scalars().first()
+        if not conn:
+            return
+
+        token = await gh_oauth.get_decrypted_token(conn.user_id)
+        if not token:
+            return
+
+        gh = GitHubService(token)
+        is_pass = scan.policy_result == "PASS"
+        state = "success" if is_pass else "failure"
+
+        critical_count = len([f for f in findings if f.get("severity") == "CRITICAL"])
+        high_count = len([f for f in findings if f.get("severity") == "HIGH"])
+        total_findings = len(findings)
+
+        if is_pass:
+            desc = "CodeSentinel: All security gates passed. Merge approved."
+        else:
+            desc = f"CodeSentinel: Blocked by security policy ({critical_count} critical, {high_count} high issues)."
+
+        # 1. Post GitHub Commit Status (Shows checkmark on PR Checks)
+        target_url = f"{settings.frontend_url}/scans/{scan.id}"
+        await gh.create_commit_status(
+            owner=repository.owner,
+            repo=repository.name,
+            sha=scan.commit_sha,
+            state=state,
+            description=desc,
+            target_url=target_url,
+            context="CodeSentinel/Security-Gate",
+        )
+
+        # 2. If it's a Pull Request, post PR Comment & Review Approval
+        if scan.pr_number:
+            if is_pass:
+                body = (
+                    f"## 🛡️ CodeSentinel Security Gate: PASSED\n\n"
+                    f"**Security Policy:** ✅ **MERGE APPROVED**\n"
+                    f"**Risk Score:** `{scan.risk_score or 0.0} / 10`\n"
+                    f"**Files Analyzed:** `{scan.files_analyzed or 0}`\n\n"
+                    f"### Summary\n"
+                    f"- **Critical Vulnerabilities:** {critical_count}\n"
+                    f"- **High Vulnerabilities:** {high_count}\n"
+                    f"- **Total Findings:** {total_findings}\n\n"
+                    f"No merge-blocking security issues were detected in this pull request.\n\n"
+                    f"[View full scan analysis & pipeline in CodeSentinel]({target_url})"
+                )
+            else:
+                findings_preview = ""
+                for f in findings[:3]:
+                    findings_preview += f"- **[{f.get('severity')}] {f.get('title')}** in `{f.get('file_path')}:{f.get('start_line')}`\n"
+
+                body = (
+                    f"## 🛡️ CodeSentinel Security Gate: FAILED\n\n"
+                    f"**Security Policy:** ❌ **MERGE BLOCKED**\n"
+                    f"**Risk Score:** `{scan.risk_score or 8.5} / 10`\n"
+                    f"**Blocking Findings:** {critical_count} critical, {high_count} high\n\n"
+                    f"### Detected Issues\n"
+                    f"{findings_preview}\n"
+                    f"Please resolve these security vulnerabilities before merging.\n\n"
+                    f"[Inspect full vulnerability findings & AI remediation]({target_url})"
+                )
+
+            # Post PR Comment
+            await gh.post_pr_comment(repository.owner, repository.name, scan.pr_number, body)
+
+            # Try to submit formal review (APPROVE / REQUEST_CHANGES). If author is same user, GitHub returns 422 which is ignored.
+            try:
+                review_event = "APPROVE" if is_pass else "REQUEST_CHANGES"
+                await gh.submit_pr_review(repository.owner, repository.name, scan.pr_number, event=review_event, body=body)
+            except Exception:
+                pass
+

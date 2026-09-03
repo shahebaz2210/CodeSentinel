@@ -145,5 +145,20 @@ class RepositoryService:
                 self.db.add(new_repo)
                 synced.append(new_repo)
 
-        await self.db.flush()
+        await self.db.commit()
+
+        # Trigger background PR check and webhook setup for newly synced repos
+        import asyncio
+        from backend.app.core.database import async_session_factory
+        from backend.app.services.pr_scanner import PRScannerService
+
+        async def _bg_sync_prs():
+            try:
+                async with async_session_factory() as bg_db:
+                    pr_service = PRScannerService(bg_db)
+                    await pr_service.scan_all_connected_repos_prs(organization_id)
+            except Exception:
+                pass
+
+        asyncio.create_task(_bg_sync_prs())
         return synced

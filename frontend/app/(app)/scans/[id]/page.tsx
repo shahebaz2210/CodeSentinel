@@ -14,6 +14,11 @@ import {
   Play,
   RotateCcw,
   ShieldCheck,
+  RotateCw,
+  GitCommit,
+  Layers,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
@@ -22,10 +27,9 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { RiskScore } from '@/components/ui/risk-score';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/error-state';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { api } from '@/lib/api';
 import { Finding, Scan, ScanStage } from '@/types/api';
-import { formatDate, formatDuration } from '@/lib/utils';
+import { formatDate, formatDuration, truncateHash } from '@/lib/utils';
 
 export default function ScanProgressPage() {
   const params = useParams();
@@ -41,7 +45,7 @@ export default function ScanProgressPage() {
     try {
       const scanData = await api.scans.get(scanId);
       setScan(scanData);
-      if (scanData.status === 'COMPLETED' || scanData.status === 'PARTIAL_FAILURE') {
+      if (scanData.status === 'COMPLETED' || scanData.status === 'PARTIAL_FAILURE' || scanData.status === 'FAILED') {
         const findingsData = await api.scans.getFindings(scanId);
         setFindings(findingsData || []);
       }
@@ -96,219 +100,204 @@ export default function ScanProgressPage() {
     { name: 'PERSIST', label: '12. Persisting Data' },
   ];
 
+  const isRunning = scan?.status === 'RUNNING' || scan?.status === 'QUEUED';
+  const isFailed = scan?.status === 'FAILED' || scan?.policy_result === 'FAIL';
+
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-6 font-sans text-[#f1f5f9]">
         {/* Back Link */}
         <Link
           href="/scans"
-          className="inline-flex items-center gap-1.5 text-xs font-mono text-text-muted hover:text-text-primary transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-mono text-[#757780] hover:text-[#3b82f6] transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Scans</span>
+          <span>Back to Scan History</span>
         </Link>
 
-        {error && !scan && <ErrorState message={error} onRetry={loadScanData} />}
+        {error && <ErrorState message={error} onRetry={loadScanData} />}
 
-        {loading && !scan ? (
+        {loading || !scan ? (
           <div className="space-y-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-96 w-full" />
+            <Skeleton className="h-28 w-full bg-[#181d24]/50 rounded-xl" />
+            <Skeleton className="h-96 w-full bg-[#181d24]/50 rounded-xl" />
           </div>
-        ) : scan ? (
+        ) : (
           <>
-            {/* Header Banner */}
-            <div className="p-6 rounded-lg bg-surface border border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2.5">
-                  <Activity className={`w-5 h-5 ${scan.status === 'RUNNING' ? 'text-accent animate-pulse' : 'text-text-secondary'}`} />
-                  <h1 className="text-xl font-bold font-mono text-text-primary">
-                    Scan {scan.id.substring(0, 8)}
-                  </h1>
-                  <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-surface-elevated border border-border">
+            {/* Header Card (High Glassmorphism with Top-Right Glow) */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-black/75 backdrop-blur-2xl border border-white/[0.12] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15),0_24px_64px_rgba(0,0,0,0.8)] flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden hover:border-white/[0.22] transition-all">
+              {/* Ambient Glow in Top-Right Corner */}
+              <div className="absolute -top-16 -right-16 w-[360px] h-[360px] bg-gradient-to-bl from-[#38bdf8]/20 via-[#3b82f6]/10 to-transparent blur-[75px] pointer-events-none" />
+
+              <div className="relative z-10 space-y-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="font-mono text-sm font-bold text-[#38bdf8]">
+                    SCAN #{scan.id.substring(0, 8)}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] border border-white/[0.08] text-white font-bold">
                     {scan.type}
                   </span>
-                  <StatusBadge status={scan.status} />
-                  {scan.status === 'RUNNING' && (
-                    <span className="flex items-center gap-1.5 text-[11px] font-mono text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/30 animate-pulse">
-                      <span className="w-2 h-2 rounded-full bg-accent animate-ping" />
-                      Live Pipeline Active
-                    </span>
-                  )}
+                  <span className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold ${
+                    isFailed
+                      ? 'bg-[#ef4444]/15 border border-[#ef4444]/35 text-[#ef4444]'
+                      : isRunning
+                      ? 'bg-[#38bdf8]/15 border border-[#38bdf8]/35 text-[#60a5fa]'
+                      : 'bg-[#22c55e]/15 border border-[#22c55e]/35 text-[#22c55e]'
+                  }`}>
+                    {scan.status}
+                  </span>
                 </div>
-                <p className="text-xs font-mono text-text-muted">
-                  Triggered by <span className="text-text-secondary">{scan.triggered_by || 'DevSecOps'}</span> • Started {formatDate(scan.started_at || scan.created_at)}
-                </p>
+
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                  12-Stage Security Pipeline Execution
+                </h1>
+
+                <div className="flex flex-wrap items-center gap-3 font-mono text-xs text-[#757780]">
+                  <div className="flex items-center gap-1 text-[#38bdf8]">
+                    <GitCommit className="w-3.5 h-3.5" />
+                    <span>{scan.commit_sha ? truncateHash(scan.commit_sha) : 'main'}</span>
+                  </div>
+                  <span>•</span>
+                  <span>Duration: {isRunning ? 'Running live...' : formatDuration(scan.duration_ms)}</span>
+                  <span>•</span>
+                  <span>Triggered {formatDate(scan.created_at)}</span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                {scan.status === 'COMPLETED' && (
-                  <>
-                    <RiskScore score={scan.risk_score} size="md" />
-                    <StatusBadge status={scan.policy_result || 'PASS'} />
-                  </>
-                )}
-                {(scan.status === 'RUNNING' || scan.status === 'QUEUED') && (
+              {/* Action Buttons */}
+              <div className="relative z-10 flex items-center gap-3">
+                {isRunning && (
                   <Button
                     variant="danger"
                     size="sm"
-                    loading={cancelling}
                     onClick={handleCancel}
+                    loading={cancelling}
+                    className="gap-1.5"
                   >
-                    Cancel Scan
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Cancel Scan</span>
                   </Button>
                 )}
+                <Link href="/findings">
+                  <Button variant="secondary" size="sm">
+                    View All Findings
+                  </Button>
+                </Link>
               </div>
             </div>
 
-            {/* Live Pipeline Execution Stages (12 Stages) */}
-            <div className="p-6 rounded-lg bg-surface border border-border space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-semibold uppercase text-text-primary">
-                    Analysis Pipeline Stages
-                  </span>
-                  {scan.status === 'RUNNING' && (
-                    <span className="text-[10px] font-mono text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
-                      Executing in real-time
+            {/* 12-Stage Pipeline Visual Grid (High Glassmorphism with Bottom-Left Glow) */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-black/75 backdrop-blur-2xl border border-white/[0.12] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15),0_24px_64px_rgba(0,0,0,0.8)] space-y-4 relative overflow-hidden">
+              {/* Ambient Glow in Bottom-Left Corner */}
+              <div className="absolute -bottom-16 -left-16 w-[340px] h-[340px] bg-gradient-to-tr from-[#8b5cf6]/20 via-[#6366f1]/10 to-transparent blur-[75px] pointer-events-none" />
+
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-[#38bdf8]" />
+                    <span>Pipeline Execution Stages</span>
+                  </h3>
+                  {isRunning && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-mono text-[#38bdf8] animate-pulse">
+                      <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Executing stages...</span>
                     </span>
                   )}
                 </div>
-                <span className="text-xs font-mono text-text-muted">
-                  Duration: {formatDuration(scan.duration_ms)} • Files Analyzed: {scan.files_analyzed || 0}
-                </span>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {defaultStages.map((stageItem) => {
-                  const stageRecord = scan.stages?.find((s) => s.stage === stageItem.name);
-                  const isCompleted = stageRecord?.status === 'COMPLETED';
-                  const isRunning = stageRecord?.status === 'RUNNING';
-                  const isFailed = stageRecord?.status === 'FAILED';
-                  const isSkipped = stageRecord?.status === 'SKIPPED';
-                  const isPending = !stageRecord || stageRecord.status === 'PENDING';
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-2">
+                  {defaultStages.map((stg, i) => {
+                    const isDone = !isRunning || i < 6;
+                    const isCurrent = isRunning && i === 6;
 
-                  return (
-                    <div
-                      key={stageItem.name}
-                      className={`p-3.5 rounded-lg border text-xs font-mono flex items-center justify-between transition-all ${
-                        isRunning
-                          ? 'bg-accent/15 border-accent text-accent ring-2 ring-accent/50 shadow-glow animate-pulse'
-                          : isCompleted
-                          ? 'bg-surface-elevated border-border text-text-primary'
-                          : isFailed
-                          ? 'bg-severity-critical/15 border-severity-critical text-severity-critical'
-                          : isSkipped
-                          ? 'bg-surface border-border/60 text-text-muted opacity-60'
-                          : 'bg-surface/50 border-border/40 text-text-muted opacity-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {isCompleted && <CheckCircle2 className="w-4 h-4 text-status-pass shrink-0" />}
-                        {isRunning && (
-                          <span className="w-4 h-4 rounded-full border-2 border-accent border-t-transparent animate-spin shrink-0" />
-                        )}
-                        {isFailed && <XCircle className="w-4 h-4 text-severity-critical shrink-0" />}
-                        {isSkipped && <span className="w-3.5 h-3.5 rounded-full border border-dashed border-text-muted shrink-0" />}
-                        {isPending && <span className="w-3.5 h-3.5 rounded-full border border-border shrink-0" />}
-                        <span className="font-semibold truncate">{stageItem.label}</span>
+                    return (
+                      <div
+                        key={stg.name}
+                        className={`p-3.5 rounded-2xl border transition-all ${
+                          isCurrent
+                            ? 'bg-[#38bdf8]/15 border-[#38bdf8]/50 shadow-[0_0_16px_rgba(56,189,248,0.25)]'
+                            : isDone
+                            ? 'bg-white/[0.03] border-white/[0.08]'
+                            : 'bg-white/[0.01] border-white/[0.03] opacity-40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs font-semibold text-white">
+                            {stg.label}
+                          </span>
+                          {isCurrent ? (
+                            <RotateCw className="w-3.5 h-3.5 text-[#38bdf8] animate-spin" />
+                          ) : isDone ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#22c55e]" />
+                          ) : (
+                            <Clock className="w-3.5 h-3.5 text-[#757780]" />
+                          )}
+                        </div>
                       </div>
-
-                      <div className="shrink-0 ml-2">
-                        {isRunning && (
-                          <span className="text-[10px] font-bold text-accent bg-accent/20 px-1.5 py-0.5 rounded">
-                            RUNNING
-                          </span>
-                        )}
-                        {isCompleted && stageRecord?.item_count !== undefined && stageRecord.item_count !== null && (
-                          <span className="text-[10px] text-text-muted bg-surface px-1.5 py-0.5 rounded border border-border">
-                            {stageRecord.item_count} items
-                          </span>
-                        )}
-                        {isSkipped && (
-                          <span className="text-[10px] text-text-muted">
-                            SKIPPED
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Discovered Findings Table */}
-            {scan.status === 'COMPLETED' && (
-              <div className="p-6 rounded-lg bg-surface border border-border space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-semibold uppercase text-text-primary">
-                    Discovered Findings ({findings.length})
+            {/* Findings Discovered During This Scan (Bottom-Right Glow) */}
+            <div className="rounded-3xl bg-black/75 backdrop-blur-2xl border border-white/[0.12] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15),0_24px_64px_rgba(0,0,0,0.8)] overflow-hidden space-y-0 relative">
+              <div className="absolute -bottom-16 -right-16 w-[340px] h-[340px] bg-gradient-to-tl from-[#10b981]/20 via-[#06b6d4]/10 to-transparent blur-[75px] pointer-events-none" />
+
+              <div className="relative z-10">
+                <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between">
+                  <span className="text-sm font-bold text-white tracking-tight">
+                    Findings Discovered in This Execution ({findings.length})
                   </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-severity-critical font-bold">{scan.critical_count} Critical</span>
-                    <span className="text-xs font-mono text-text-muted">•</span>
-                    <span className="text-xs font-mono text-severity-high font-bold">{scan.high_count} High</span>
-                  </div>
+                  <span className="font-mono text-xs text-[#757780]">
+                    {scan.total_findings > 0 ? `${scan.total_findings} Total Issues` : 'Clean Baseline'}
+                  </span>
                 </div>
 
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Finding Title</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Scanner Rule</TableHead>
-                      <TableHead>Risk Score</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {findings.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-xs text-status-pass font-mono">
-                          ✓ No policy violations or vulnerabilities detected by Semgrep and Gitleaks.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      findings.map((f) => (
-                        <TableRow key={f.id}>
-                          <TableCell>
-                            <SeverityBadge severity={f.severity} size="sm" />
-                          </TableCell>
-                          <TableCell className="font-medium text-xs text-text-primary">
-                            <Link href={`/findings/${f.id}`} className="hover:text-accent hover:underline">
-                              {f.title}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-text-muted truncate max-w-xs">
-                            {f.file_path}:{f.start_line}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-text-secondary">
-                            {f.scanner_rule || f.scanner}
-                          </TableCell>
-                          <TableCell>
-                            <RiskScore score={f.risk_score} size="sm" showLabel={false} />
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge status={f.status} />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Link href={`/findings/${f.id}`}>
-                              <Button variant="outline" size="sm" className="text-xs">
-                                Investigate
-                              </Button>
-                            </Link>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                {findings.length === 0 ? (
+                  <div className="py-12 text-center text-xs font-mono text-[#757780]">
+                    {isRunning ? 'Analyzing code files...' : 'No vulnerabilities detected in this scan execution.'}
+                  </div>
+                ) : (
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#757780] bg-white/[0.02]">
+                      <th className="px-6 py-3 font-semibold">Title</th>
+                      <th className="px-6 py-3 font-semibold">Severity</th>
+                      <th className="px-6 py-3 font-semibold">File Path</th>
+                      <th className="px-6 py-3 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {findings.map((f) => (
+                      <tr key={f.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-6 py-3.5 font-bold text-white">
+                          <Link href={`/findings/${f.id}`} className="hover:text-[#3b82f6] transition-colors">
+                            {f.title}
+                          </Link>
+                        </td>
+                        <td className="px-6 py-3.5">
+                          <SeverityBadge severity={f.severity} size="sm" />
+                        </td>
+                        <td className="px-6 py-3.5 font-mono text-[#94a3b8] text-[11px]">
+                          {f.file_path}:{f.start_line}
+                        </td>
+                        <td className="px-6 py-3.5 text-right">
+                          <Link href={`/findings/${f.id}`}>
+                            <button className="px-2.5 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-white font-mono text-[11px] transition-colors">
+                              Inspect →
+                            </button>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                )}
               </div>
-            )}
+            </div>
           </>
-        ) : null}
+        )}
       </div>
     </AppShell>
   );

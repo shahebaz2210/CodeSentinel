@@ -125,4 +125,33 @@ export const api = {
   audit: {
     list: () => fetcher<AuditLog[]>('/audit/logs'),
   },
+  pullRequests: {
+    sync: (orgId?: string) =>
+      fetcher<{
+        status: string;
+        message?: string;
+        repos_checked: number;
+        detected_prs: number;
+        triggered_scans: number;
+        scans: any[];
+        webhook_setup?: any;
+      }>(orgId ? `/pull-requests/sync?organization_id=${orgId}` : '/pull-requests/sync', { method: 'POST' }),
+    setupWebhooks: (orgId?: string) =>
+      fetcher<{
+        status: string;
+        message?: string;
+        webhook_url?: string;
+        configured: number;
+        failed: number;
+        results: any[];
+      }>(orgId ? `/pull-requests/webhooks/setup?organization_id=${orgId}` : '/pull-requests/webhooks/setup', { method: 'POST' }),
+    getWebhookStatus: () =>
+      fetcher<{
+        github_connected: boolean;
+        public_url: string | null;
+        is_public_ready: boolean;
+        webhook_secret_configured: boolean;
+        connected_repos_count: number;
+      }>('/pull-requests/webhooks/status'),
+  },
 };
