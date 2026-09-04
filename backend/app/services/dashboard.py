@@ -135,7 +135,7 @@ class DashboardService:
 
         return DashboardSummary(
             overall_security_posture=posture,
-            average_risk_score=round(crit_count * 20.0 + high_count * 10.0, 1) if (crit_count or high_count) else 15.0,
+            average_risk_score=round(crit_count * 20.0 + high_count * 10.0 + med_count * 5.0 + low_count * 1.0, 1),
             total_repositories=total_repos,
             scanned_repositories=len(top_repos),
             critical_findings_count=crit_count,
