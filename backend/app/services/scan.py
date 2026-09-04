@@ -137,16 +137,80 @@ class ScanService:
         await self.db.flush()
         return await self.get_scan_with_details(scan.id)
 
+    async def get_scans_with_details_batch(self, scans: List[Scan]) -> List[ScanResponse]:
+        """Batch-load details for multiple scans in 3 queries total (eliminating N+1)."""
+        if not scans:
+            return []
+
+        scan_ids = [s.id for s in scans]
+        repo_ids = list({s.repository_id for s in scans if s.repository_id})
+
+        # 1. Fetch all stages in single query
+        stage_stmt = (
+            select(ScanStage)
+            .where(ScanStage.scan_id.in_(scan_ids))
+            .order_by(ScanStage.created_at.asc())
+        )
+        stage_res = await self.db.execute(stage_stmt)
+        stages_by_scan: dict[str, list[ScanStageResponse]] = {sid: [] for sid in scan_ids}
+        for st in stage_res.scalars().all():
+            stages_by_scan.setdefault(st.scan_id, []).append(ScanStageResponse.model_validate(st))
+
+        # 2. Fetch finding counts in single aggregated group query
+        fc_stmt = (
+            select(
+                Finding.scan_id,
+                func.count(func.nullif(Finding.severity != "CRITICAL", True)).label("critical"),
+                func.count(func.nullif(Finding.severity != "HIGH", True)).label("high"),
+                func.count(func.nullif(Finding.severity != "MEDIUM", True)).label("medium"),
+                func.count(func.nullif(Finding.severity != "LOW", True)).label("low"),
+                func.count(func.nullif(Finding.category != "SECRET", True)).label("secret"),
+                func.count(Finding.id).label("total"),
+            )
+            .where(Finding.scan_id.in_(scan_ids))
+            .group_by(Finding.scan_id)
+        )
+        fc_res = await self.db.execute(fc_stmt)
+        fc_by_scan: dict[str, dict] = {}
+        for row in fc_res.all():
+            fc_by_scan[row.scan_id] = {
+                "critical": row.critical or 0,
+                "high": row.high or 0,
+                "medium": row.medium or 0,
+                "low": row.low or 0,
+                "secret": row.secret or 0,
+                "total": row.total or 0,
+            }
+
+        # 3. Fetch repo names in single query
+        repo_name_map: dict[str, str] = {}
+        if repo_ids:
+            repo_res = await self.db.execute(select(Repository.id, Repository.name).where(Repository.id.in_(repo_ids)))
+            repo_name_map = dict(repo_res.all())
+
+        # Assemble responses in memory
+        results = []
+        for s in scans:
+            resp = ScanResponse.model_validate(s)
+            resp.stages = stages_by_scan.get(s.id, [])
+            resp.repository_name = repo_name_map.get(s.repository_id)
+            fc = fc_by_scan.get(s.id)
+            if fc:
+                resp.critical_count = fc["critical"]
+                resp.high_count = fc["high"]
+                resp.medium_count = fc["medium"]
+                resp.low_count = fc["low"]
+                resp.secret_count = fc["secret"]
+                resp.total_findings = fc["total"]
+            results.append(resp)
+
+        return results
+
     async def get_repository_scans(self, repository_id: str) -> List[ScanResponse]:
         stmt = select(Scan).where(Scan.repository_id == repository_id).order_by(desc(Scan.created_at))
         res = await self.db.execute(stmt)
         scans = res.scalars().all()
-
-        responses = []
-        for s in scans:
-            resp = await self.get_scan_with_details(s.id)
-            responses.append(resp)
-        return responses
+        return await self.get_scans_with_details_batch(scans)
 
     async def list_scans(
         self,
@@ -181,10 +245,7 @@ class ScanService:
         res = await self.db.execute(stmt)
         scans = res.scalars().all()
 
-        items = []
-        for s in scans:
-            resp = await self.get_scan_with_details(s.id)
-            items.append(resp)
+        items = await self.get_scans_with_details_batch(scans)
 
         return {
             "items": items,

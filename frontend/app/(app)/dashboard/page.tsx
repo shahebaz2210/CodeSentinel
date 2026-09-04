@@ -89,15 +89,28 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Real-time live polling every 5 seconds
+  // Real-time live polling every 5 seconds (smart tab visibility-aware)
   useEffect(() => {
     loadData(false);
 
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        return; // Pause polling when tab is inactive/hidden
+      }
       loadData(true);
     }, 5000);
 
-    return () => clearInterval(interval);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadData(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [loadData]);
 
   // Compute percentage for severity distribution

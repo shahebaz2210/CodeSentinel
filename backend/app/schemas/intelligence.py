@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SecurityDocumentResponse(BaseModel):
@@ -18,8 +18,7 @@ class SecurityDocumentResponse(BaseModel):
     metadata_json: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SecurityChunkResponse(BaseModel):
@@ -32,8 +31,7 @@ class SecurityChunkResponse(BaseModel):
     external_id: Optional[str] = None
     title: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class IntelligenceSearchRequest(BaseModel):

@@ -5,10 +5,10 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
-class Severity(str, Enum):
+class SeverityLevel(str, Enum):
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -16,10 +16,16 @@ class Severity(str, Enum):
     INFO = "INFO"
 
 
-class Confidence(str, Enum):
+Severity = SeverityLevel
+
+
+class ConfidenceLevel(str, Enum):
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
+
+
+Confidence = ConfidenceLevel
 
 
 class FindingStatus(str, Enum):
@@ -45,8 +51,7 @@ class AIAssessmentResponse(BaseModel):
     retrieved_sources: Optional[List[dict]] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FindingResponse(BaseModel):
@@ -75,8 +80,7 @@ class FindingResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FindingDetailResponse(FindingResponse):

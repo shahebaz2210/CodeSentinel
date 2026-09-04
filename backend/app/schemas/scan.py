@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ScanType(str, Enum):
@@ -56,8 +56,7 @@ class ScanStageResponse(BaseModel):
     item_count: Optional[int] = None
     error_message: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ScanResponse(BaseModel):
@@ -87,5 +86,4 @@ class ScanResponse(BaseModel):
     secret_count: int = 0
     total_findings: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

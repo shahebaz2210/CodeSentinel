@@ -83,13 +83,10 @@ class DashboardService:
         scans_today_res = await self.db.execute(today_scans_stmt)
         scans_today_count = scans_today_res.scalar() or 0
 
-        # Recent scans (expanded to 20 for full audit visibility)
+        # Recent scans (batch loaded with 0 N+1 overhead)
         recent_scans_stmt = select(Scan).order_by(desc(Scan.created_at)).limit(20)
         scans_res = await self.db.execute(recent_scans_stmt)
-        recent_scans = []
-        for s in scans_res.scalars().all():
-            resp = await self.scan_service.get_scan_with_details(s.id)
-            recent_scans.append(resp)
+        recent_scans = await self.scan_service.get_scans_with_details_batch(scans_res.scalars().all())
 
         # Recent findings
         recent_f_stmt = (

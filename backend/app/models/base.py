@@ -24,7 +24,7 @@ def generate_uuid() -> str:
 class TimestampMixin:
     """Mixin adding created_at and updated_at columns."""
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False

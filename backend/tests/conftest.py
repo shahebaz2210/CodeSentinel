@@ -11,7 +11,7 @@ if str(root_dir) not in sys.path:
 
 # Set test environment variables
 os.environ["APP_ENV"] = "test"
-os.environ["DATABASE_URL"] = "postgresql+asyncpg://codesentinel:codesentinel@localhost:5432/codesentinel"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///codesentinel.db"
 os.environ["REDIS_URL"] = "redis://localhost:6379/0"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-1234567890-test-secret-key-1234567890"
 os.environ["ENCRYPTION_KEY"] = "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcw=="

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PolicyResultEnum(str, Enum):
@@ -55,8 +55,7 @@ class PolicyResponse(BaseModel):
     updated_at: datetime
     affected_repositories_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PolicyEvaluationResult(BaseModel):
@@ -84,5 +83,4 @@ class ExceptionResponse(BaseModel):
     status: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

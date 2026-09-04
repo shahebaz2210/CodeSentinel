@@ -49,16 +49,19 @@ async def lifespan(app: FastAPI):  # type: ignore[type-arg]
     except Exception:
         pass  # DB may not be available yet during frontend-only dev
 
-    # Start background PR auto-scanner task
-    poll_task = asyncio.create_task(_pr_polling_worker())
+    # Start background PR auto-scanner task (only in non-test mode)
+    poll_task = None
+    if settings.app_env != "test":
+        poll_task = asyncio.create_task(_pr_polling_worker())
     try:
         yield
     finally:
-        poll_task.cancel()
-        try:
-            await poll_task
-        except (asyncio.CancelledError, Exception):
-            pass
+        if poll_task:
+            poll_task.cancel()
+            try:
+                await poll_task
+            except (asyncio.CancelledError, Exception):
+                pass
 
 
 def create_app() -> FastAPI:

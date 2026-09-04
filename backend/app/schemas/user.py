@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class UserBase(BaseModel):
@@ -22,8 +22,7 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrganizationResponse(BaseModel):
@@ -33,8 +32,7 @@ class OrganizationResponse(BaseModel):
     created_at: datetime
     role: Optional[str] = "DEVELOPER"
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserMeResponse(BaseModel):
