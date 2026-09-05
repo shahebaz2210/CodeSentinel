@@ -214,16 +214,27 @@ Open your browser and navigate to **`http://localhost:3000`**.
 
 ## 🐙 GitHub OAuth & Webhooks Setup
 
-To connect CodeSentinel with your GitHub repositories:
+### 1. GitHub OAuth App Setup (Required for Login)
+**Yes, anyone running or cloning this project locally must create their own GitHub OAuth App** so GitHub knows where to redirect authentication requests:
 
 1. Navigate to **[GitHub Developer Settings](https://github.com/settings/developers)** -> **OAuth Apps**.
 2. Click **New OAuth App**.
 3. Fill in the required fields:
-   - **Application Name**: `CodeSentinel Dev`
+   - **Application Name**: `CodeSentinel Local`
    - **Homepage URL**: `http://localhost:3000`
-   - **Authorization callback URL**: `http://localhost:8000/api/v1/auth/github/callback`
-4. Register application and click **Generate a new client secret**.
-5. Copy the **Client ID** and **Client Secret** into your `.env` file under `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`.
+   - **Authorization callback URL**: `http://localhost:8000/api/v1/auth/github/callback` *(or your deployed server domain)*
+4. Click **Register application** and then **Generate a new client secret**.
+5. Copy the **Client ID** and **Client Secret** into your `.env` file (`GITHUB_CLIENT_ID` & `GITHUB_CLIENT_SECRET`).
+
+### 2. GitHub Webhook Setup (Required for Automated PR Scans)
+GitHub webhooks require a publicly accessible URL to reach your instance:
+
+- **For Production/Cloud Deployment**: Point the webhook payload URL in your GitHub Repository settings to `https://<your-domain>/api/v1/webhooks/github`.
+- **For Local Development**: Since GitHub cannot reach `localhost` directly, use a tunnel like **ngrok**:
+  ```bash
+  ngrok http 8000
+  ```
+  Then use the generated public HTTPS URL (e.g. `https://xxxx.ngrok-free.app/api/v1/webhooks/github`) in your repository's Webhook settings.
 
 ---
 
