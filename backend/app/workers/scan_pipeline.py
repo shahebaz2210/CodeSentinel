@@ -177,7 +177,7 @@ class ScanPipeline:
 
             async def _run_semgrep():
                 try:
-                    raw = await asyncio.wait_for(self.semgrep_scanner.scan(workspace_dir, {}), timeout=15.0)
+                    raw = await asyncio.wait_for(self.semgrep_scanner.scan(workspace_dir, {}), timeout=60.0)
                     return self.semgrep_scanner.normalize(raw)
                 except Exception as e:
                     logger.warning("semgrep_fast_fallback", error=str(e))
@@ -195,9 +195,53 @@ class ScanPipeline:
             await self._update_stage("SEMGREP", "COMPLETED", item_count=len(semgrep_findings))
             await self._update_stage("GITLEAKS", "COMPLETED", item_count=len(gitleaks_findings))
 
-            # 6. NORMALIZATION Stage (Deduplicate)
+            # 6. NORMALIZATION Stage (Deduplicate & Scope to PR changed files)
             await self._update_stage("NORMALIZATION", "RUNNING")
             all_raw = semgrep_findings + gitleaks_findings
+
+            # Normalize file paths to be relative to workspace root (handling Windows path case differences)
+            ws_path_str = str(workspace_dir).replace("\\", "/").rstrip("/").lower()
+            for f in all_raw:
+                raw_path = str(f.get("file_path", "")).replace("\\", "/")
+                raw_path_lower = raw_path.lower()
+                if raw_path_lower.startswith(ws_path_str):
+                    raw_path = raw_path[len(ws_path_str):].lstrip("/")
+                f["file_path"] = raw_path
+
+            # If scanning a Pull Request, filter findings exclusively to files modified or added in this PR
+            if scan.type == "PR" and scan.pr_number and repository.owner and repository.name:
+                changed_files = None
+                try:
+                    from backend.app.models.github_connection import GitHubConnection
+                    from backend.app.services.github_oauth import GitHubOAuthService
+                    from backend.app.services.github import GitHubService
+
+                    gh_oauth = GitHubOAuthService(self.db)
+                    conn_res = await self.db.execute(select(GitHubConnection).order_by(GitHubConnection.created_at.desc()))
+                    conn = conn_res.scalars().first()
+                    if conn:
+                        token = await gh_oauth.get_decrypted_token(conn.user_id)
+                        if token:
+                            gh_client = GitHubService(token)
+                            pr_files = await gh_client.get_pull_request_files(repository.owner, repository.name, scan.pr_number)
+                            changed_files = {
+                                str(item.get("filename", "")).replace("\\", "/").strip("/").lower()
+                                for item in pr_files if isinstance(item, dict) and item.get("filename")
+                            }
+                            logger.info("pr_diff_changed_files_detected", count=len(changed_files), files=list(changed_files))
+                except Exception as e:
+                    logger.warning("failed_to_fetch_pr_files_for_diff_filtering", error=str(e))
+
+                if changed_files is not None and len(changed_files) > 0:
+                    scoped_findings = []
+                    for f in all_raw:
+                        fp_clean = str(f.get("file_path", "")).replace("\\", "/").strip("/").lower()
+                        if any(fp_clean == cf or fp_clean.endswith("/" + cf) or cf.endswith("/" + fp_clean) for cf in changed_files):
+                            scoped_findings.append(f)
+                        else:
+                            logger.info("skipping_untouched_file_finding_in_pr", file=f.get("file_path"), title=f.get("title"))
+                    all_raw = scoped_findings
+
             normalized_findings = FindingNormalizer.process_and_deduplicate(
                 repository_id=repository.id,
                 scanner_findings=all_raw,
@@ -213,6 +257,8 @@ class ScanPipeline:
                     start_line=f.get("start_line", 1),
                 )
                 f["surrounding_code"] = snippet
+                if snippet:
+                    f["evidence"] = snippet
             await self._update_stage("CONTEXT", "COMPLETED", item_count=len(normalized_findings))
 
             # 8. INTELLIGENCE Stage (Parallel RAG Retrieval)

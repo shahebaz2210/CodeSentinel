@@ -52,8 +52,28 @@ class FindingService:
         occ_count = occ_res.scalar() or 1
 
         finding_resp = FindingResponse.model_validate(finding)
+        evidence_snippet = finding.evidence
+        is_formatted_code = bool(evidence_snippet and (" | " in evidence_snippet or ">> " in evidence_snippet))
+
+        if not is_formatted_code or evidence_snippet == "requires login":
+            from backend.app.ai.context_builder import ContextBuilder
+            from pathlib import Path
+            ws = Path(".")
+            fname = Path(finding.file_path).name
+            target_path = finding.file_path if (ws / finding.file_path).exists() else (fname if (ws / fname).exists() else finding.file_path)
+            local_code = ContextBuilder.extract_surrounding_code(
+                workspace_path=ws,
+                file_path=target_path,
+                start_line=finding.start_line or 1,
+            )
+            if local_code:
+                evidence_snippet = local_code
+
+        finding_dict = finding_resp.model_dump()
+        finding_dict["evidence"] = evidence_snippet
+
         return FindingDetailResponse(
-            **finding_resp.model_dump(),
+            **finding_dict,
             ai_assessment=ai_assessment,
             repository_name=repo_name,
             commit_sha=commit_sha,

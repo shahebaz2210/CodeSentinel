@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -35,12 +36,18 @@ class SemgrepScanner(Scanner):
             str(workspace_path),
         ]
 
+        # Ensure Python Scripts directory is in PATH for pysemgrep resolution on Windows
+        scripts_dir = str(Path(semgrep_bin).parent)
+        env = dict(os.environ)
+        env["PATH"] = f"{scripts_dir};{env.get('PATH', '')}"
+
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(workspace_path),
+                env=env,
             )
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=300)
 
@@ -110,6 +117,8 @@ class SemgrepScanner(Scanner):
                 confidence = "MEDIUM"
 
             lines = extra.get("lines", "")
+            if lines == "requires login":
+                lines = ""
             start = rf.get("start", {})
             end = rf.get("end", {})
 
@@ -128,7 +137,7 @@ class SemgrepScanner(Scanner):
                 "end_line": end.get("line", start.get("line", 1)),
                 "start_column": start.get("col", 1),
                 "end_column": end.get("col", 1),
-                "evidence": lines or message,
+                "evidence": lines,
                 "remediation": metadata.get("fix", "Review vulnerable line and apply input sanitization / secure API."),
                 "metadata": metadata,
             })

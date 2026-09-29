@@ -93,8 +93,20 @@ class ScanService:
             Scan.status.in_(["QUEUED", "RUNNING"])
         )
         active_res = await self.db.execute(active_stmt)
-        if active_res.scalar_one_or_none():
-            raise AppError(ErrorCode.SCAN_ALREADY_RUNNING, "A scan is already queued or running on this repository.")
+        active_scan = active_res.scalars().first()
+        if active_scan:
+            now = datetime.now(timezone.utc)
+            created = active_scan.created_at
+            if created and created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            # If scan has been queued or running for > 120 seconds, mark as failed/stale
+            if created and (now - created).total_seconds() > 120:
+                active_scan.status = "FAILED"
+                active_scan.completed_at = now
+                active_scan.error_message = "Scan timed out or worker process was interrupted."
+                await self.db.commit()
+            else:
+                raise AppError(ErrorCode.SCAN_ALREADY_RUNNING, "A scan is already queued or running on this repository.")
 
         target_branch = branch or repo.default_branch
         scan = Scan(
