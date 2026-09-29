@@ -13,6 +13,6 @@ def get_user(username: str = Query(...)):
 
     cursor.execute(query)
     users = cursor.fetchall()
-#nothing
+#nothing dbkjv msdbvkjb
     conn.close()
     return {"users": users}
