@@ -24,12 +24,23 @@ class GitHubOAuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    def get_redirect_uri(self) -> str:
+        """Resolve public redirect URI, overriding stale ngrok tunnels with live cloud URL."""
+        import os
+        uri = settings.github_redirect_uri
+        if "ngrok" in uri or not uri or uri.startswith("http://localhost"):
+            if os.environ.get("RENDER") or os.environ.get("RENDER_EXTERNAL_URL") or os.environ.get("PORT"):
+                return "https://codesentinel-api-y2k1.onrender.com/api/v1/auth/github/callback"
+        if "ngrok" in uri:
+            return "https://codesentinel-api-y2k1.onrender.com/api/v1/auth/github/callback"
+        return uri
+
     def build_authorization_url(self, state: Optional[str] = None) -> Tuple[str, str]:
         """Generate GitHub OAuth URL with state param."""
         state_token = state or generate_secret(16)
         params = {
             "client_id": settings.github_client_id,
-            "redirect_uri": settings.github_redirect_uri,
+            "redirect_uri": self.get_redirect_uri(),
             "scope": "read:user user:email repo read:org",
             "state": state_token,
         }
@@ -44,7 +55,7 @@ class GitHubOAuthService:
                 "client_id": settings.github_client_id,
                 "client_secret": settings.github_client_secret,
                 "code": code,
-                "redirect_uri": settings.github_redirect_uri,
+                "redirect_uri": self.get_redirect_uri(),
             }
             resp = await client.post(self.GITHUB_TOKEN_URL, headers=headers, data=data)
             if resp.status_code != 200:

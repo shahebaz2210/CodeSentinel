@@ -11,7 +11,8 @@ export default function LoginPage() {
   const handleGitHubLogin = async () => {
     setLoading(true);
     try {
-      const res = await api.auth.getGitHubUrl();
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const res = await api.auth.getGitHubUrl(origin);
       if (res && res.url) {
         window.location.href = res.url;
       } else {

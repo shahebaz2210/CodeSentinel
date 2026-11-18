@@ -46,7 +46,8 @@ export const api = {
   auth: {
     getMe: () => fetcher<UserMe>('/auth/me'),
     getStatus: () => fetcher<{ authenticated: boolean; github_connected: boolean }>('/auth/status'),
-    getGitHubUrl: () => fetcher<{ url: string; state: string }>('/auth/github/url'),
+    getGitHubUrl: (origin?: string) =>
+      fetcher<{ url: string; state: string }>(origin ? `/auth/github/url?frontend_origin=${encodeURIComponent(origin)}` : '/auth/github/url'),
     logout: () => fetcher<{ success: boolean }>('/auth/logout', { method: 'POST' }),
   },
   dashboard: {

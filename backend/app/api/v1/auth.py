@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,22 +57,49 @@ async def get_current_user_profile(
 @router.get("/github/url", response_model=GitHubOAuthUrlResponse)
 async def get_github_auth_url(
     state: Optional[str] = Query(None),
+    frontend_origin: Optional[str] = Query(None),
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
 ) -> GitHubOAuthUrlResponse:
-    """Get the GitHub OAuth authorization URL."""
+    """Get the GitHub OAuth authorization URL with dynamic frontend callback tracking."""
     gh_oauth = GitHubOAuthService(db)
-    url, state_token = gh_oauth.build_authorization_url(state)
+    
+    # Resolve frontend origin
+    origin = frontend_origin
+    if not origin and request:
+        referer = request.headers.get("referer") or request.headers.get("origin")
+        if referer:
+            from urllib.parse import urlparse
+            p = urlparse(referer)
+            if p.scheme and p.netloc:
+                origin = f"{p.scheme}://{p.netloc}"
+
+    base_state = state or generate_secret(16)
+    state_token = f"{base_state}_origin_{origin}" if origin else base_state
+    url, _ = gh_oauth.build_authorization_url(state_token)
     return GitHubOAuthUrlResponse(url=url, state=state_token)
 
 
 @router.get("/github")
 async def redirect_to_github(
     state: Optional[str] = Query(None),
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Direct redirect to GitHub OAuth authorization page."""
     gh_oauth = GitHubOAuthService(db)
-    url, _ = gh_oauth.build_authorization_url(state)
+    origin = None
+    if request:
+        referer = request.headers.get("referer") or request.headers.get("origin")
+        if referer:
+            from urllib.parse import urlparse
+            p = urlparse(referer)
+            if p.scheme and p.netloc:
+                origin = f"{p.scheme}://{p.netloc}"
+
+    base_state = state or generate_secret(16)
+    state_token = f"{base_state}_origin_{origin}" if origin else base_state
+    url, _ = gh_oauth.build_authorization_url(state_token)
     return RedirectResponse(url=url, status_code=302)
 
 
@@ -104,8 +131,14 @@ async def github_oauth_callback(
     # 5. Generate session token
     session_token = auth_service.generate_session_token(user)
 
-    # 6. Redirect to frontend with secure session cookie and token param for cross-origin local testing
-    redirect_url = f"{settings.frontend_url}/dashboard?token={session_token}"
+    # 6. Extract dynamic frontend return URL from state parameter if present
+    target_frontend = settings.frontend_url
+    if state and "_origin_" in state:
+        parts = state.split("_origin_", 1)
+        if len(parts) == 2 and parts[1].startswith("http"):
+            target_frontend = parts[1].rstrip("/")
+
+    redirect_url = f"{target_frontend}/dashboard?token={session_token}"
     response = RedirectResponse(url=redirect_url, status_code=302)
     response.set_cookie(
         key="session_token",
