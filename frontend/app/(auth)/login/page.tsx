@@ -15,10 +15,10 @@ export default function LoginPage() {
       if (res && res.url) {
         window.location.href = res.url;
       } else {
-        window.location.href = 'http://localhost:8000/api/v1/auth/github';
+        window.location.href = '/api/v1/auth/github';
       }
     } catch {
-      window.location.href = 'http://localhost:8000/api/v1/auth/github';
+      window.location.href = '/api/v1/auth/github';
     }
   };
 

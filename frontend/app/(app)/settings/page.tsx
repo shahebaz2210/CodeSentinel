@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 
 export default function SettingsPage() {
   const [copiedWebhook, setCopiedWebhook] = useState(false);
-  const webhookUrl = 'http://localhost:8000/api/v1/webhooks/github';
+  const webhookUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/v1/webhooks/github` : '/api/v1/webhooks/github';
 
   const handleCopyWebhook = () => {
     navigator.clipboard.writeText(webhookUrl);
@@ -73,7 +73,7 @@ export default function SettingsPage() {
                   OAuth Connection & Token
                 </div>
                 <a
-                  href="http://localhost:8000/api/v1/auth/github"
+                  href="/api/v1/auth/github"
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-xs font-semibold text-white transition-all shadow-sm"
                 >
                   <Github className="w-3.5 h-3.5" />

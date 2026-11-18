@@ -128,7 +128,7 @@ export default function RepositoriesPage() {
               <span>Your GitHub OAuth access token has expired. Please re-authenticate to sync your repositories and pull requests.</span>
             </div>
             <a
-              href="http://localhost:8000/api/v1/auth/github"
+              href="/api/v1/auth/github"
               className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs transition-colors shrink-0"
             >
               <Github className="w-3.5 h-3.5" />

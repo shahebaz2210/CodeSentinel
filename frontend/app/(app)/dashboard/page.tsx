@@ -53,7 +53,7 @@ export default function DashboardPage() {
       await loadData(true);
     } catch (e: any) {
       if (e.message?.includes('401') || e.message?.includes('Bad credentials')) {
-        window.location.href = 'http://localhost:8000/api/v1/auth/github';
+        window.location.href = '/api/v1/auth/github';
       } else {
         alert(`Sync failed: ${e.message}`);
       }
