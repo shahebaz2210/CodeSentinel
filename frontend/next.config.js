@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
-const backendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
+let rawBackendUrl = process.env.BACKEND_URL?.trim();
+
+// Sanitize BACKEND_URL: prevent invalid values like literal "BACKEND_URL" or missing protocol
+if (!rawBackendUrl || rawBackendUrl === 'BACKEND_URL') {
+  rawBackendUrl = 'http://127.0.0.1:8000';
+} else if (!rawBackendUrl.startsWith('http://') && !rawBackendUrl.startsWith('https://')) {
+  rawBackendUrl = `https://${rawBackendUrl}`;
+}
+const backendUrl = rawBackendUrl.replace(/\/+$/, '');
 
 const nextConfig = {
   reactStrictMode: true,
