@@ -95,6 +95,13 @@ class ScanPipeline:
         scan.started_at = datetime.now(timezone.utc)
         await self.db.flush()
 
+        # Immediately report pending status to GitHub so developers see check in progress
+        if scan.commit_sha and repository.provider == "github":
+            try:
+                await self._report_github_pending_status(repository, scan)
+            except Exception as e:
+                logger.debug("failed_to_post_pending_status", error=str(e))
+
         start_time = time.perf_counter()
         workspace_dir = Path(tempfile.mkdtemp(prefix=f"codesentinel_{self.scan_id[:8]}_"))
 
@@ -511,6 +518,35 @@ class ScanPipeline:
             encoding="utf-8"
         )
         return True
+
+    async def _report_github_pending_status(self, repository: Repository, scan: Scan):
+        """Publish immediate pending commit status check to GitHub upon scan start."""
+        from backend.app.models.github_connection import GitHubConnection
+        from backend.app.services.github import GitHubService
+        from backend.app.services.github_oauth import GitHubOAuthService
+
+        gh_oauth = GitHubOAuthService(self.db)
+        stmt = select(GitHubConnection).order_by(GitHubConnection.created_at.desc())
+        res = await self.db.execute(stmt)
+        conn = res.scalars().first()
+        if not conn:
+            return
+
+        token = await gh_oauth.get_decrypted_token(conn.user_id)
+        if not token:
+            return
+
+        gh = GitHubService(token)
+        target_url = f"{settings.frontend_url}/scans/{scan.id}"
+        await gh.create_commit_status(
+            owner=repository.owner,
+            repo=repository.name,
+            sha=scan.commit_sha,
+            state="pending",
+            description="CodeSentinel: Security gate analysis in progress...",
+            target_url=target_url,
+            context="CodeSentinel/Security-Gate",
+        )
 
     async def _report_github_gate_decision(self, repository: Repository, scan: Scan, findings: List[dict]):
         """Publish commit status check and PR approval/review comments to GitHub."""

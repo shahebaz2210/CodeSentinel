@@ -1,0 +1,3 @@
+@echo off
+echo Starting CodeSentinel via PowerShell...
+powershell -ExecutionPolicy Bypass -File "%~dp0start.ps1" %*

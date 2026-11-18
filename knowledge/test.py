@@ -1,0 +1,1 @@
+query = "SELECT id, username, email FROM users WHERE username = '" + username + "'"
