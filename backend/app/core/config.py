@@ -41,10 +41,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # --- GitHub OAuth ---
-    github_client_id: str = ""
-    github_client_secret: str = ""
-    github_webhook_secret: str = ""
-    github_redirect_uri: str = "http://localhost:8000/api/v1/auth/github/callback"
+    github_client_id: str = "Ov23liDZLgmewzZOPhWm"
+    github_client_secret: str = "ebedc533945be87cb680cf8342a0f8d1718b9120"
+    github_webhook_secret: str = "4076b5456b0be216a05bd90cf3a999adee78fe5748e54bffd80343b1bb112913"
+    github_redirect_uri: str = "https://codesentinel-api-y2k1.onrender.com/api/v1/auth/github/callback"
 
     # --- AI Provider (Gemini) ---
     gemini_api_key: str = ""
