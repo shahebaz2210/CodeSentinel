@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.config import settings
 from backend.app.core.database import get_db
 from backend.app.core.deps import get_current_user, get_current_user_optional
+from backend.app.core.security import generate_secret
 from backend.app.models.user import User
 from backend.app.schemas.auth import (
     AuthStatus,
